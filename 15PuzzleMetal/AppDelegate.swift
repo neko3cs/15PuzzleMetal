@@ -15,6 +15,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         let mainMenu = NSApp.mainMenu!
         
+        // Remove all menus except the App menu (first item)
+        while mainMenu.items.count > 1 {
+            mainMenu.removeItem(at: 1)
+        }
+        
         let gameMenuItem = NSMenuItem(title: "Game", action: nil, keyEquivalent: "")
         let gameMenu = NSMenu(title: "Game")
         
@@ -24,7 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         gameMenu.addItem(resetItem)
         gameMenuItem.submenu = gameMenu
         
-        mainMenu.insertItem(gameMenuItem, at: 1) // After the app menu
+        mainMenu.addItem(gameMenuItem)
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {

@@ -12,13 +12,9 @@ enum MoveDirection {
 class PuzzleLogic {
     let size = 4
     var board: [Int] // 0 represents the empty space
+    private static let solvedBoard = Array(1...15) + [0]
     var isSolved: Bool {
-        for i in 0..<15 {
-            if board[i] != i + 1 {
-                return false
-            }
-        }
-        return board[15] == 0
+        return board == PuzzleLogic.solvedBoard
     }
     
     init() {

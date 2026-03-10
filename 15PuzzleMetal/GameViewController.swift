@@ -39,12 +39,14 @@ class GameViewController: NSViewController {
         
         // Listen for appearance changes using modern KVO
         appearanceObserver = view.observe(\.effectiveAppearance, options: [.new]) { [weak self] view, _ in
-            guard let self = self, let mtkView = view as? MTKView else { return }
-            let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            self.renderer.updateBackgroundColor(view: mtkView, isDarkMode: isDarkMode)
-            
-            if let label = self.winLabel {
-                label.textColor = isDarkMode ? .systemYellow : .systemOrange
+            Task { @MainActor in
+                guard let self = self, let mtkView = view as? MTKView else { return }
+                let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                self.renderer.updateBackgroundColor(view: mtkView, isDarkMode: isDarkMode)
+                
+                if let label = self.winLabel {
+                    label.textColor = isDarkMode ? .systemYellow : .systemOrange
+                }
             }
         }
     }
