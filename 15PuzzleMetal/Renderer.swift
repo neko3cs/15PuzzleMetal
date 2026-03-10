@@ -32,8 +32,7 @@ class Renderer: NSObject, MTKViewDelegate {
         self.device = metalKitView.device!
         self.commandQueue = self.device.makeCommandQueue()!
 
-        metalKitView.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
-        metalKitView.colorPixelFormat = .bgra8Unorm_srgb
+        metalKitView.clearColor = MTLClearColor(red: 0.15, green: 0.12, blue: 0.2, alpha: 1.0) // Matches texture background
 
         // Build Pipeline State
         let library = device.makeDefaultLibrary()
@@ -61,6 +60,15 @@ class Renderer: NSObject, MTKViewDelegate {
         pipelineDescriptor.vertexDescriptor = mtlVertexDescriptor
         pipelineDescriptor.colorAttachments[0].pixelFormat = metalKitView.colorPixelFormat
         
+        // --- Enable Alpha Blending ---
+        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
+        pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
+        pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
+        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
+        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        
         do {
             pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
         } catch {
@@ -68,11 +76,33 @@ class Renderer: NSObject, MTKViewDelegate {
             return nil
         }
 
-        // Generate Texture
+        // Generate Texture with Mipmapping
         guard let tex = NumberTextureGenerator.generate(device: device) else {
             return nil
         }
-        numberTexture = tex
+        
+        // Re-create texture with mipmaps if we want to use generateMipmaps
+        let texDesc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: tex.pixelFormat, width: tex.width, height: tex.height, mipmapped: true)
+        texDesc.usage = [.shaderRead, .renderTarget] // renderTarget required for generateMipmaps
+        guard let mipTex = device.makeTexture(descriptor: texDesc) else { return nil }
+        
+        // Copy initial data to level 0
+        let region = MTLRegionMake2D(0, 0, tex.width, tex.height)
+        let bytesPerRow = tex.width * 4
+        let tempBuffer = device.makeBuffer(length: tex.width * tex.height * 4, options: .storageModeShared)!
+        tex.getBytes(tempBuffer.contents(), bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        mipTex.replace(region: region, mipmapLevel: 0, withBytes: tempBuffer.contents(), bytesPerRow: bytesPerRow)
+        
+        // Generate Mipmaps
+        if let commandBuffer = self.commandQueue.makeCommandBuffer(),
+           let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
+            blitEncoder.generateMipmaps(for: mipTex)
+            blitEncoder.endEncoding()
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+        }
+        
+        numberTexture = mipTex
 
         super.init()
 

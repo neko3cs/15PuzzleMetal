@@ -27,42 +27,67 @@ class NumberTextureGenerator {
             return nil
         }
         
-        // Fill background (clear or black)
-        context.setFillColor(NSColor.black.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        // --- Pop Theme Colors ---
+        let boardBackgroundColor = NSColor(calibratedRed: 0.15, green: 0.12, blue: 0.2, alpha: 1.0) // Deep dark purple
+        let tileColors: [NSColor] = [
+            NSColor(calibratedRed: 0.95, green: 0.35, blue: 0.45, alpha: 1.0), // Coral pink
+            NSColor(calibratedRed: 0.45, green: 0.85, blue: 0.45, alpha: 1.0), // Soft green
+            NSColor(calibratedRed: 0.35, green: 0.65, blue: 0.95, alpha: 1.0), // Sky blue
+            NSColor(calibratedRed: 1.0,  green: 0.8,  blue: 0.3,  alpha: 1.0)  // Golden yellow
+        ]
         
-        // Divide into 4x4 grid (16 tiles)
+        // Fill overall texture background with transparency
+        context.clear(CGRect(x: 0, y: 0, width: width, height: height))
+        
         let tileSize = width / 4
+        let cornerRadius: CGFloat = CGFloat(tileSize) * 0.15
         
         for i in 0..<16 {
             let number = i + 1
-            if number > 15 { continue } // 16th is empty
+            if number > 15 { continue }
             
             let row = i / 4
             let col = i % 4
             
-            // Draw tile background
+            // Draw tile background with rounded corners
             let rect = CGRect(x: col * tileSize, y: (3 - row) * tileSize, width: tileSize, height: tileSize)
-            context.setFillColor(NSColor.darkGray.cgColor)
-            context.setStrokeColor(NSColor.white.cgColor)
-            context.setLineWidth(2.0)
-            context.fill(rect.insetBy(dx: 2, dy: 2))
-            context.stroke(rect.insetBy(dx: 2, dy: 2))
+            let tileRect = rect.insetBy(dx: 12, dy: 12)
+            
+            // CoreGraphics drawing for smooth edges
+            let path = CGPath(roundedRect: tileRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+            
+            // Pick a color
+            let colorIndex = (row + col) % tileColors.count
+            
+            context.saveGState()
+            // Add shadow
+            context.setShadow(offset: CGSize(width: 4, height: -4), blur: 12, color: NSColor.black.withAlphaComponent(0.6).cgColor)
+            context.setFillColor(tileColors[colorIndex].cgColor)
+            context.addPath(path)
+            context.fillPath()
+            context.restoreGState()
+            
+            // Draw tile border
+            context.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
+            context.setLineWidth(6.0)
+            context.addPath(path)
+            context.strokePath()
             
             // Draw number
             let text = "\(number)"
+            let fontSize = CGFloat(tileSize) * 0.5
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.boldSystemFont(ofSize: CGFloat(tileSize) * 0.6),
-                .foregroundColor: NSColor.white
+                .font: NSFont.boldSystemFont(ofSize: fontSize),
+                .foregroundColor: NSColor.white,
+                .strokeWidth: -2.0, // Thicker font
+                .strokeColor: NSColor.black.withAlphaComponent(0.3)
             ]
             let attributedString = NSAttributedString(string: text, attributes: attributes)
             let textSize = attributedString.size()
             
-            let textX = rect.midX - textSize.width / 2
-            let textY = rect.midY - textSize.height / 2
+            let textX = tileRect.midX - textSize.width / 2
+            let textY = tileRect.midY - textSize.height / 2
             
-            // CoreGraphics coordinate system: origin at bottom-left
-            // Flip text rendering if needed, but since we are drawing to CGContext, it should be fine.
             NSGraphicsContext.saveGraphicsState()
             NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
             attributedString.draw(at: CGPoint(x: textX, y: textY))
@@ -85,5 +110,29 @@ class NumberTextureGenerator {
                         bytesPerRow: bytesPerRow)
         
         return texture
+    }
+}
+
+// Extension to bridge NSBezierPath to CGPath easily
+extension NSBezierPath {
+    var cgPath: CGPath {
+        let path = CGMutablePath()
+        var points = [CGPoint](repeating: .zero, count: 3)
+        for i in 0 ..< self.elementCount {
+            let type = self.element(at: i, associatedPoints: &points)
+            switch type {
+            case .moveTo:
+                path.move(to: points[0])
+            case .lineTo:
+                path.addLine(to: points[0])
+            case .curveTo:
+                path.addCurve(to: points[2], control1: points[0], control2: points[1])
+            case .closePath:
+                path.closeSubpath()
+            @unknown default:
+                break
+            }
+        }
+        return path
     }
 }
