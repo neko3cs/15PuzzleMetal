@@ -28,11 +28,30 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     @MainActor
+    func updateBackgroundColor(isDarkMode: Bool) {
+        if let view = (NSApplication.shared.delegate as? AppDelegate)?.window?.contentViewController?.view as? MTKView {
+            if isDarkMode {
+                view.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
+            } else {
+                view.clearColor = MTLClearColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
+            }
+        }
+    }
+    
+    @MainActor
     init?(metalKitView: MTKView) {
         self.device = metalKitView.device!
         self.commandQueue = self.device.makeCommandQueue()!
 
-        metalKitView.clearColor = MTLClearColor(red: 0.15, green: 0.12, blue: 0.2, alpha: 1.0) // Matches texture background
+        // Initial background color setup
+        let isDarkMode = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        if isDarkMode {
+            metalKitView.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
+        } else {
+            metalKitView.clearColor = MTLClearColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
+        }
+        
+        metalKitView.colorPixelFormat = .bgra8Unorm_srgb
 
         // Build Pipeline State
         let library = device.makeDefaultLibrary()

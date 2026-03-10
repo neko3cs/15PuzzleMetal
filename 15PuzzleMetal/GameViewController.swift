@@ -34,6 +34,23 @@ class GameViewController: NSViewController {
         mtkView.delegate = renderer
         
         setupWinLabel()
+        
+        // Listen for appearance changes
+        self.view.addObserver(self, forKeyPath: "effectiveAppearance", options: [.new], context: nil)
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "effectiveAppearance" {
+            let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            renderer.updateBackgroundColor(isDarkMode: isDarkMode)
+            
+            // Also update winLabel color
+            winLabel.textColor = isDarkMode ? .systemYellow : .systemOrange
+        }
+    }
+    
+    deinit {
+        self.view.removeObserver(self, forKeyPath: "effectiveAppearance")
     }
     
     func setupWinLabel() {

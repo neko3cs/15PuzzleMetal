@@ -27,13 +27,13 @@ class NumberTextureGenerator {
             return nil
         }
         
-        // --- Pop Theme Colors ---
-        let boardBackgroundColor = NSColor(calibratedRed: 0.15, green: 0.12, blue: 0.2, alpha: 1.0) // Deep dark purple
+        // --- Vivid Theme Colors ---
         let tileColors: [NSColor] = [
-            NSColor(calibratedRed: 0.95, green: 0.35, blue: 0.45, alpha: 1.0), // Coral pink
-            NSColor(calibratedRed: 0.45, green: 0.85, blue: 0.45, alpha: 1.0), // Soft green
-            NSColor(calibratedRed: 0.35, green: 0.65, blue: 0.95, alpha: 1.0), // Sky blue
-            NSColor(calibratedRed: 1.0,  green: 0.8,  blue: 0.3,  alpha: 1.0)  // Golden yellow
+            NSColor(calibratedRed: 1.0,  green: 0.1,  blue: 0.1,  alpha: 1.0), // Vivid Red
+            NSColor(calibratedRed: 0.1,  green: 0.9,  blue: 0.1,  alpha: 1.0), // Vivid Green
+            NSColor(calibratedRed: 0.1,  green: 0.4,  blue: 1.0,  alpha: 1.0), // Vivid Blue
+            NSColor(calibratedRed: 0.9,  green: 0.1,  blue: 0.9,  alpha: 1.0), // Vivid Magenta
+            NSColor(calibratedRed: 1.0,  green: 0.6,  blue: 0.0,  alpha: 1.0)  // Vivid Orange
         ]
         
         // Fill overall texture background with transparency
