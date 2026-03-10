@@ -7,8 +7,6 @@ import Metal
 import MetalKit
 import simd
 
-let maxBuffersInFlight = 3
-
 class Renderer: NSObject, MTKViewDelegate {
 
     public let device: MTLDevice
@@ -16,7 +14,10 @@ class Renderer: NSObject, MTKViewDelegate {
     var pipelineState: MTLRenderPipelineState
     var numberTexture: MTLTexture
     
-    let puzzleLogic = PuzzleLogic()
+    // Board state passed from the controller
+    var board: [Int] = Array(1...15) + [0]
+    var boardSize: Int = 4
+    
     var projectionMatrix = matrix_float4x4()
     
     // Quad mesh for a single tile
@@ -57,17 +58,12 @@ class Renderer: NSObject, MTKViewDelegate {
         let fragmentFunction = library?.makeFunction(name: "fragmentShader")
         
         let mtlVertexDescriptor = MTLVertexDescriptor()
-        // Position: float3 (offset 0)
         mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = .float3
         mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
         mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = 0
-        
-        // TexCoord: float2 (offset 12)
         mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].format = .float2
         mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].offset = 12
         mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].bufferIndex = 0
-        
-        // Stride: 12 (pos) + 8 (uv) = 20
         mtlVertexDescriptor.layouts[0].stride = 20
         mtlVertexDescriptor.layouts[0].stepFunction = .perVertex
         
@@ -77,7 +73,6 @@ class Renderer: NSObject, MTKViewDelegate {
         pipelineDescriptor.vertexDescriptor = mtlVertexDescriptor
         pipelineDescriptor.colorAttachments[0].pixelFormat = metalKitView.colorPixelFormat
         
-        // --- Enable Alpha Blending ---
         pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
         pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
         pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
@@ -93,24 +88,20 @@ class Renderer: NSObject, MTKViewDelegate {
             return nil
         }
 
-        // Generate Texture with Mipmapping
         guard let tex = NumberTextureGenerator.generate(device: device) else {
             return nil
         }
         
-        // Re-create texture with mipmaps if we want to use generateMipmaps
         let texDesc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: tex.pixelFormat, width: tex.width, height: tex.height, mipmapped: true)
-        texDesc.usage = [.shaderRead, .renderTarget] // renderTarget required for generateMipmaps
+        texDesc.usage = [.shaderRead, .renderTarget]
         guard let mipTex = device.makeTexture(descriptor: texDesc) else { return nil }
         
-        // Copy initial data to level 0
         let region = MTLRegionMake2D(0, 0, tex.width, tex.height)
         let bytesPerRow = tex.width * 4
         let tempBuffer = device.makeBuffer(length: tex.width * tex.height * 4, options: .storageModeShared)!
         tex.getBytes(tempBuffer.contents(), bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
         mipTex.replace(region: region, mipmapLevel: 0, withBytes: tempBuffer.contents(), bytesPerRow: bytesPerRow)
         
-        // Generate Mipmaps
         if let commandBuffer = self.commandQueue.makeCommandBuffer(),
            let blitEncoder = commandBuffer.makeBlitCommandEncoder() {
             blitEncoder.generateMipmaps(for: mipTex)
@@ -123,18 +114,14 @@ class Renderer: NSObject, MTKViewDelegate {
 
         super.init()
 
-        // Build Quad Mesh (two triangles to form a rectangle)
-        // 1 - 2
-        // | \ |
-        // 0 - 3
         let vertices = [
-            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1), // 0: Bottom-Left
-            Vertex(x: -0.5, y:  0.5, z: 0, u: 0, v: 0), // 1: Top-Left
-            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0), // 2: Top-Right
+            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1),
+            Vertex(x: -0.5, y:  0.5, z: 0, u: 0, v: 0),
+            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0),
             
-            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1), // 0: Bottom-Left
-            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0), // 2: Top-Right
-            Vertex(x:  0.5, y: -0.5, z: 0, u: 1, v: 1)  // 3: Bottom-Right
+            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1),
+            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0),
+            Vertex(x:  0.5, y: -0.5, z: 0, u: 1, v: 1)
         ]
         vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * 20, options: [])
     }
@@ -150,30 +137,26 @@ class Renderer: NSObject, MTKViewDelegate {
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         renderEncoder.setFragmentTexture(numberTexture, index: 0)
         
-        // Global Uniforms
         var globalUniforms = GlobalUniforms(projectionMatrix: projectionMatrix)
         renderEncoder.setVertexBytes(&globalUniforms, length: MemoryLayout<GlobalUniforms>.size, index: 2)
         
-        // Draw 16 tiles (skipping the empty space)
         let tileSize: Float = 1.0
         let spacing: Float = 0.05
-        let totalSize = Float(puzzleLogic.size) * tileSize + Float(puzzleLogic.size - 1) * spacing
+        let totalSize = Float(boardSize) * tileSize + Float(boardSize - 1) * spacing
         let startOffset = -totalSize / 2 + tileSize / 2
         
-        for i in 0..<16 {
-            let number = puzzleLogic.board[i]
-            if number == 0 { continue } // Skip blank tile
+        for i in 0..<board.count {
+            let number = board[i]
+            if number == 0 { continue }
             
-            let row = i / 4
-            let col = i % 4
+            let row = i / boardSize
+            let col = i % boardSize
             
             let x = startOffset + Float(col) * (tileSize + spacing)
             let y = -startOffset - Float(row) * (tileSize + spacing)
             
             let modelMatrix = matrix4x4_translation(x, y, 0)
             
-            // UV mapping: tile 'number' is at its original position in the texture
-            // The number 1 is at index 0 (row 0, col 0) in the texture
             let originalIndex = number - 1
             let texRow = originalIndex / 4
             let texCol = originalIndex % 4

@@ -9,7 +9,7 @@ import MetalKit
 class GameViewController: NSViewController {
 
     var renderer: Renderer!
-    var mtkView: MTKView!
+    var puzzleLogic: PuzzleLogic!
     var winLabel: NSTextField!
 
     private var appearanceObserver: NSKeyValueObservation?
@@ -32,6 +32,12 @@ class GameViewController: NSViewController {
         }
 
         renderer = newRenderer
+        puzzleLogic = PuzzleLogic()
+        
+        // Pass initial model state to the view
+        renderer.board = puzzleLogic.board
+        renderer.boardSize = puzzleLogic.size
+        
         renderer.mtkView(mtkView, drawableSizeWillChange: mtkView.drawableSize)
         mtkView.delegate = renderer
         
@@ -59,7 +65,9 @@ class GameViewController: NSViewController {
     func setupWinLabel() {
         winLabel = NSTextField(labelWithString: "You did it!")
         winLabel.font = NSFont.boldSystemFont(ofSize: 48)
-        winLabel.textColor = .systemYellow
+        
+        let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        winLabel.textColor = isDarkMode ? .systemYellow : .systemOrange
         winLabel.alignment = .center
         winLabel.isHidden = true
         
@@ -79,38 +87,42 @@ class GameViewController: NSViewController {
             }
         }
 
-        if renderer.puzzleLogic.isSolved { return }
+        if puzzleLogic.isSolved { return }
         
         var moved = false
         if let chars = event.charactersIgnoringModifiers {
             switch chars {
-            case "k": moved = renderer.puzzleLogic.move(direction: .up)
-            case "j": moved = renderer.puzzleLogic.move(direction: .down)
-            case "h": moved = renderer.puzzleLogic.move(direction: .left)
-            case "l": moved = renderer.puzzleLogic.move(direction: .right)
+            case "k": moved = puzzleLogic.move(direction: .up)
+            case "j": moved = puzzleLogic.move(direction: .down)
+            case "h": moved = puzzleLogic.move(direction: .left)
+            case "l": moved = puzzleLogic.move(direction: .right)
             default: break
             }
         }
         
         if !moved {
             switch event.keyCode {
-            case 126: moved = renderer.puzzleLogic.move(direction: .up)    // Up
-            case 125: moved = renderer.puzzleLogic.move(direction: .down)  // Down
-            case 123: moved = renderer.puzzleLogic.move(direction: .left)  // Left
-            case 124: moved = renderer.puzzleLogic.move(direction: .right) // Right
+            case 126: moved = puzzleLogic.move(direction: .up)    // Up
+            case 125: moved = puzzleLogic.move(direction: .down)  // Down
+            case 123: moved = puzzleLogic.move(direction: .left)  // Left
+            case 124: moved = puzzleLogic.move(direction: .right) // Right
             default: break
             }
         }
         
         if moved {
-            if renderer.puzzleLogic.isSolved {
+            // Update the view with new model state
+            renderer.board = puzzleLogic.board
+            
+            if puzzleLogic.isSolved {
                 winLabel.isHidden = false
             }
         }
     }
     
     @objc func resetGame() {
-        renderer.puzzleLogic.reset()
+        puzzleLogic.reset()
+        renderer.board = puzzleLogic.board
         winLabel.isHidden = true
     }
     
