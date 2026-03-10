@@ -27,20 +27,20 @@ class NumberTextureGenerator {
             return nil
         }
         
-        // --- Vivid Theme Colors ---
+        // --- Super Vivid Theme Colors ---
         let tileColors: [NSColor] = [
-            NSColor(calibratedRed: 1.0,  green: 0.1,  blue: 0.1,  alpha: 1.0), // Vivid Red
-            NSColor(calibratedRed: 0.1,  green: 0.9,  blue: 0.1,  alpha: 1.0), // Vivid Green
-            NSColor(calibratedRed: 0.1,  green: 0.4,  blue: 1.0,  alpha: 1.0), // Vivid Blue
-            NSColor(calibratedRed: 0.9,  green: 0.1,  blue: 0.9,  alpha: 1.0), // Vivid Magenta
-            NSColor(calibratedRed: 1.0,  green: 0.6,  blue: 0.0,  alpha: 1.0)  // Vivid Orange
+            NSColor(calibratedRed: 1.0,  green: 0.0,  blue: 0.2,  alpha: 1.0), // Deep Pink-Red
+            NSColor(calibratedRed: 0.0,  green: 1.0,  blue: 0.1,  alpha: 1.0), // Neon Green
+            NSColor(calibratedRed: 0.0,  green: 0.4,  blue: 1.0,  alpha: 1.0), // Electric Blue
+            NSColor(calibratedRed: 0.8,  green: 0.0,  blue: 1.0,  alpha: 1.0), // Royal Magenta
+            NSColor(calibratedRed: 1.0,  green: 0.5,  blue: 0.0,  alpha: 1.0)  // Bright Orange
         ]
         
         // Fill overall texture background with transparency
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         
         let tileSize = width / 4
-        let cornerRadius: CGFloat = CGFloat(tileSize) * 0.15
+        let cornerRadius: CGFloat = CGFloat(tileSize) * 0.18
         
         for i in 0..<16 {
             let number = i + 1
@@ -53,34 +53,40 @@ class NumberTextureGenerator {
             let rect = CGRect(x: col * tileSize, y: (3 - row) * tileSize, width: tileSize, height: tileSize)
             let tileRect = rect.insetBy(dx: 12, dy: 12)
             
-            // CoreGraphics drawing for smooth edges
             let path = CGPath(roundedRect: tileRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
-            
-            // Pick a color
             let colorIndex = (row + col) % tileColors.count
+            let baseColor = tileColors[colorIndex]
             
             context.saveGState()
-            // Add shadow
-            context.setShadow(offset: CGSize(width: 4, height: -4), blur: 12, color: NSColor.black.withAlphaComponent(0.6).cgColor)
-            context.setFillColor(tileColors[colorIndex].cgColor)
+            // Add Deeper shadow
+            context.setShadow(offset: CGSize(width: 6, height: -6), blur: 15, color: NSColor.black.withAlphaComponent(0.7).cgColor)
+            
+            // Draw gradient/gloss effect (Linear gradient)
+            let colors = [baseColor.cgColor, baseColor.blended(withFraction: 0.3, of: .white)!.cgColor] as CFArray
+            let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: [0.0, 1.0])!
+            
             context.addPath(path)
-            context.fillPath()
+            context.clip()
+            context.drawLinearGradient(gradient, 
+                                       start: CGPoint(x: tileRect.midX, y: tileRect.minY), 
+                                       end: CGPoint(x: tileRect.midX, y: tileRect.maxY), 
+                                       options: [])
             context.restoreGState()
             
-            // Draw tile border
-            context.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
-            context.setLineWidth(6.0)
+            // Draw tile border (thick & bright)
+            context.setStrokeColor(NSColor.white.withAlphaComponent(0.95).cgColor)
+            context.setLineWidth(8.0)
             context.addPath(path)
             context.strokePath()
             
-            // Draw number
+            // Draw number with strong shadow
             let text = "\(number)"
-            let fontSize = CGFloat(tileSize) * 0.5
+            let fontSize = CGFloat(tileSize) * 0.55
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.boldSystemFont(ofSize: fontSize),
                 .foregroundColor: NSColor.white,
-                .strokeWidth: -2.0, // Thicker font
-                .strokeColor: NSColor.black.withAlphaComponent(0.3)
+                .strokeWidth: -1.5,
+                .strokeColor: NSColor.black.withAlphaComponent(0.4)
             ]
             let attributedString = NSAttributedString(string: text, attributes: attributes)
             let textSize = attributedString.size()
@@ -90,7 +96,11 @@ class NumberTextureGenerator {
             
             NSGraphicsContext.saveGraphicsState()
             NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+            // Draw text shadow
+            context.saveGState()
+            context.setShadow(offset: CGSize(width: 2, height: -2), blur: 5, color: NSColor.black.withAlphaComponent(0.5).cgColor)
             attributedString.draw(at: CGPoint(x: textX, y: textY))
+            context.restoreGState()
             NSGraphicsContext.restoreGraphicsState()
         }
         
