@@ -28,13 +28,11 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     @MainActor
-    func updateBackgroundColor(isDarkMode: Bool) {
-        if let view = (NSApplication.shared.delegate as? AppDelegate)?.window?.contentViewController?.view as? MTKView {
-            if isDarkMode {
-                view.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
-            } else {
-                view.clearColor = MTLClearColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
-            }
+    func updateBackgroundColor(view: MTKView, isDarkMode: Bool) {
+        if isDarkMode {
+            view.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
+        } else {
+            view.clearColor = MTLClearColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
         }
     }
     

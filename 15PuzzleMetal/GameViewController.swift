@@ -12,6 +12,8 @@ class GameViewController: NSViewController {
     var mtkView: MTKView!
     var winLabel: NSTextField!
 
+    private var appearanceObserver: NSKeyValueObservation?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -35,22 +37,20 @@ class GameViewController: NSViewController {
         
         setupWinLabel()
         
-        // Listen for appearance changes
-        self.view.addObserver(self, forKeyPath: "effectiveAppearance", options: [.new], context: nil)
-    }
-    
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "effectiveAppearance" {
+        // Listen for appearance changes using modern KVO
+        appearanceObserver = view.observe(\.effectiveAppearance, options: [.new]) { [weak self] view, _ in
+            guard let self = self, let mtkView = view as? MTKView else { return }
             let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            renderer.updateBackgroundColor(isDarkMode: isDarkMode)
+            self.renderer.updateBackgroundColor(view: mtkView, isDarkMode: isDarkMode)
             
-            // Also update winLabel color
-            winLabel.textColor = isDarkMode ? .systemYellow : .systemOrange
+            if let label = self.winLabel {
+                label.textColor = isDarkMode ? .systemYellow : .systemOrange
+            }
         }
     }
     
     deinit {
-        self.view.removeObserver(self, forKeyPath: "effectiveAppearance")
+        appearanceObserver?.invalidate()
     }
     
     func setupWinLabel() {
