@@ -64,6 +64,7 @@ class GameViewController: NSViewController {
     
     func setupWinLabel() {
         winLabel = NSTextField(labelWithString: "You did it!")
+        winLabel.setAccessibilityIdentifier("WinLabel")
         winLabel.font = NSFont.boldSystemFont(ofSize: 48)
         
         let isDarkMode = view.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -85,6 +86,15 @@ class GameViewController: NSViewController {
                 resetGame()
                 return
             }
+            
+            #if DEBUG
+            // Hidden debug key 'w' to force a near-win state
+            if chars == "w" && event.modifierFlags.contains(.option) {
+                puzzleLogic.setNearSolvedState()
+                renderer.board = puzzleLogic.board
+                return
+            }
+            #endif
         }
 
         if puzzleLogic.isSolved { return }

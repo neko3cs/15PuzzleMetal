@@ -79,4 +79,13 @@ class PuzzleLogic {
     func reset() {
         shuffle()
     }
+    
+    #if DEBUG
+    /// Sets the board to a state where only one move is needed to win.
+    func setNearSolvedState() {
+        // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 15]
+        // Move 15 to the right to win
+        board = Array(1...14) + [0, 15]
+    }
+    #endif
 }
