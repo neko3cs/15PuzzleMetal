@@ -2,15 +2,9 @@
 //  Shaders.metal
 //  15PuzzleMetal
 //
-//  Created by neko3cs on 2026/03/10.
-//
-
-// File for Metal kernel and shader functions
 
 #include <metal_stdlib>
 #include <simd/simd.h>
-
-// Including header shared between this Metal shader code and Swift/C code executing Metal API commands
 #import "ShaderTypes.h"
 
 using namespace metal;
@@ -28,26 +22,27 @@ typedef struct
 } ColorInOut;
 
 vertex ColorInOut vertexShader(Vertex in [[stage_in]],
-                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]])
+                               constant GlobalUniforms & globalUniforms [[ buffer(2) ]],
+                               constant TileUniforms   & tileUniforms   [[ buffer(3) ]])
 {
     ColorInOut out;
-
     float4 position = float4(in.position, 1.0);
-    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
-    out.texCoord = in.texCoord;
-
+    out.position = globalUniforms.projectionMatrix * tileUniforms.modelMatrix * position;
+    
+    // Scale and offset UV coordinates to pick the right number from the atlas
+    out.texCoord = in.texCoord * tileUniforms.uvScale + tileUniforms.uvOffset;
+    
     return out;
 }
 
 fragment float4 fragmentShader(ColorInOut in [[stage_in]],
-                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]],
-                               texture2d<half> colorMap     [[ texture(TextureIndexColor) ]])
+                               texture2d<half> colorMap [[ texture(TextureIndexColor) ]])
 {
     constexpr sampler colorSampler(mip_filter::linear,
                                    mag_filter::linear,
                                    min_filter::linear);
 
-    half4 colorSample   = colorMap.sample(colorSampler, in.texCoord.xy);
+    half4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy);
 
     return float4(colorSample);
 }

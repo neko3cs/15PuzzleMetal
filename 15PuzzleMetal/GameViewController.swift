@@ -2,43 +2,102 @@
 //  GameViewController.swift
 //  15PuzzleMetal
 //
-//  Created by neko3cs on 2026/03/10.
-//
 
 import Cocoa
 import MetalKit
 
-// Our macOS specific view controller
 class GameViewController: NSViewController {
 
     var renderer: Renderer!
     var mtkView: MTKView!
+    var winLabel: NSTextField!
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         guard let mtkView = self.view as? MTKView else {
-            print("View attached to GameViewController is not an MTKView")
             return
         }
 
-        // Select the device to render with.  We choose the default device
         guard let defaultDevice = MTLCreateSystemDefaultDevice() else {
-            print("Metal is not supported on this device")
             return
         }
 
         mtkView.device = defaultDevice
 
         guard let newRenderer = Renderer(metalKitView: mtkView) else {
-            print("Renderer cannot be initialized")
             return
         }
 
         renderer = newRenderer
-
         renderer.mtkView(mtkView, drawableSizeWillChange: mtkView.drawableSize)
-
         mtkView.delegate = renderer
+        
+        setupWinLabel()
+    }
+    
+    func setupWinLabel() {
+        winLabel = NSTextField(labelWithString: "You did it!")
+        winLabel.font = NSFont.boldSystemFont(ofSize: 48)
+        winLabel.textColor = .systemYellow
+        winLabel.alignment = .center
+        winLabel.isHidden = true
+        
+        view.addSubview(winLabel)
+        winLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            winLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            winLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if let chars = event.charactersIgnoringModifiers {
+            if chars == "r" && event.modifierFlags.contains(.command) {
+                resetGame()
+                return
+            }
+        }
+
+        if renderer.puzzleLogic.isSolved { return }
+        
+        var moved = false
+        if let chars = event.charactersIgnoringModifiers {
+            switch chars {
+            case "k": moved = renderer.puzzleLogic.move(direction: .up)
+            case "j": moved = renderer.puzzleLogic.move(direction: .down)
+            case "h": moved = renderer.puzzleLogic.move(direction: .left)
+            case "l": moved = renderer.puzzleLogic.move(direction: .right)
+            default: break
+            }
+        }
+        
+        if !moved {
+            switch event.keyCode {
+            case 126: moved = renderer.puzzleLogic.move(direction: .up)    // Up
+            case 125: moved = renderer.puzzleLogic.move(direction: .down)  // Down
+            case 123: moved = renderer.puzzleLogic.move(direction: .left)  // Left
+            case 124: moved = renderer.puzzleLogic.move(direction: .right) // Right
+            default: break
+            }
+        }
+        
+        if moved {
+            if renderer.puzzleLogic.isSolved {
+                winLabel.isHidden = false
+            }
+        }
+    }
+    
+    @objc func resetGame() {
+        renderer.puzzleLogic.reset()
+        winLabel.isHidden = true
+    }
+    
+    override var acceptsFirstResponder: Bool { return true }
+    
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.makeFirstResponder(self)
     }
 }
