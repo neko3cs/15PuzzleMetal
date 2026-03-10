@@ -6,6 +6,7 @@
 import Testing
 @testable import _5PuzzleMetal
 
+@MainActor
 struct PuzzleLogicTests {
 
     @Test func testInitialState() async throws {
