@@ -23,8 +23,8 @@ class Renderer: NSObject, MTKViewDelegate {
     var vertexBuffer: MTLBuffer!
     
     struct Vertex {
-        var position: SIMD3<Float>
-        var texCoord: SIMD2<Float>
+        var x, y, z: Float
+        var u, v: Float
     }
 
     @MainActor
@@ -41,13 +41,19 @@ class Renderer: NSObject, MTKViewDelegate {
         let fragmentFunction = library?.makeFunction(name: "fragmentShader")
         
         let mtlVertexDescriptor = MTLVertexDescriptor()
-        mtlVertexDescriptor.attributes[0].format = .float3
-        mtlVertexDescriptor.attributes[0].offset = 0
-        mtlVertexDescriptor.attributes[0].bufferIndex = 0
-        mtlVertexDescriptor.attributes[1].format = .float2
-        mtlVertexDescriptor.attributes[1].offset = 12
-        mtlVertexDescriptor.attributes[1].bufferIndex = 0
+        // Position: float3 (offset 0)
+        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = .float3
+        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
+        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = 0
+        
+        // TexCoord: float2 (offset 12)
+        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].format = .float2
+        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].offset = 12
+        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].bufferIndex = 0
+        
+        // Stride: 12 (pos) + 8 (uv) = 20
         mtlVertexDescriptor.layouts[0].stride = 20
+        mtlVertexDescriptor.layouts[0].stepFunction = .perVertex
         
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.vertexFunction = vertexFunction
@@ -70,17 +76,20 @@ class Renderer: NSObject, MTKViewDelegate {
 
         super.init()
 
-        // Build Quad Mesh
+        // Build Quad Mesh (two triangles to form a rectangle)
+        // 1 - 2
+        // | \ |
+        // 0 - 3
         let vertices = [
-            Vertex(position: [-0.5, -0.5, 0], texCoord: [0, 1]),
-            Vertex(position: [ 0.5, -0.5, 0], texCoord: [1, 1]),
-            Vertex(position: [-0.5,  0.5, 0], texCoord: [0, 0]),
+            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1), // 0: Bottom-Left
+            Vertex(x: -0.5, y:  0.5, z: 0, u: 0, v: 0), // 1: Top-Left
+            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0), // 2: Top-Right
             
-            Vertex(position: [ 0.5, -0.5, 0], texCoord: [1, 1]),
-            Vertex(position: [ 0.5,  0.5, 0], texCoord: [1, 0]),
-            Vertex(position: [-0.5,  0.5, 0], texCoord: [0, 0])
+            Vertex(x: -0.5, y: -0.5, z: 0, u: 0, v: 1), // 0: Bottom-Left
+            Vertex(x:  0.5, y:  0.5, z: 0, u: 1, v: 0), // 2: Top-Right
+            Vertex(x:  0.5, y: -0.5, z: 0, u: 1, v: 1)  // 3: Bottom-Right
         ]
-        vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<Vertex>.stride, options: [])
+        vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * 20, options: [])
     }
 
     func draw(in view: MTKView) {
